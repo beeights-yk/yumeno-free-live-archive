@@ -227,6 +227,7 @@ loadSetlists()
   })
   .catch((error) => {
     console.error('セットリスト取得失敗:', error);
+    alert('セットリスト取得失敗: ' + error.message);
     initializeSelects();
     counts();
     render();
