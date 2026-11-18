@@ -1,14 +1,43 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const raw = Array.isArray(window.SETLIST_DATA) ? window.SETLIST_DATA : [];
-  const records = raw.filter((r) => r && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.id)
-    .map((r) => ({
-      id: String(r.id), date: r.date, title: String(r.title || 'フリーライブ'),
-      venue: String(r.venue || ''), area: String(r.area || ''),
-      songs: Array.isArray(r.songs) ? r.songs.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()) : [],
-      notes: String(r.notes || ''), source: safeLink(r.source),
-    }));
+ 
+const records = [];
+
+const SUPABASE_URL = 'https://nyybtxqwitqiqflpkofm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Yp8367m7KnLGsAdgVLiIHw_4-tn6ULO';
+
+async function loadSetlists() {
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/live_setlists?select=*&order=live_date.desc`,
+    {
+      headers: {
+        apikey: SUPABASE_KEY
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Supabase: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  records.splice(0, records.length, ...data.map(r => ({
+    id: String(r.id),
+    date: r.live_date,
+    title: 'フリーライブ',
+    venue: r.venue || '',
+    area: '',
+    songs: (r.songs || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean),
+    notes: '',
+    source: ''
+  })));
+}
+
   const state = { q: '', year: '', area: '', sort: 'new', tab: 'events' };
   const params = new URLSearchParams(location.search);
   state.q = params.get('q') || '';
@@ -189,5 +218,17 @@
   $('sort-filter').addEventListener('change', (e) => { state.sort = e.target.value; render(); });
   $('tab-events').addEventListener('click', () => switchTab('events'));
   $('tab-songs').addEventListener('click', () => switchTab('songs'));
-  initializeSelects(); counts(); render();
+  
+loadSetlists()
+  .then(() => {
+    initializeSelects();
+    counts();
+    render();
+  })
+  .catch((error) => {
+    console.error('セットリスト取得失敗:', error);
+    initializeSelects();
+    counts();
+    render();
+  });
 })();
